@@ -17,36 +17,19 @@ type mockServer struct {
 }
 
 type route struct {
-	domain   string
-	method   string
-	path     string
-	query    string
-	headers  map[string]string
-	response string
-	//TODO: status code, payload
-}
-
-type routeOptions struct {
-	Logging bool
+	domain          string
+	method          string
+	path            string
+	query           string
+	requestHeaders  map[string]string
+	statusCode      int
+	response        string
+	responseHeaders map[string]string
+	//TODO: payload
 }
 
 // FuncOption is the option for a route
 type FuncOption func(*route)
-
-// WithHeaders specifies headers to be matched
-func WithHeaders(headerStr string) FuncOption {
-	headers := strings.Split(headerStr, ";")
-	headerMap := make(map[string]string)
-
-	for _, header := range headers {
-		pair := strings.Split(header, ":")
-		headerMap[strings.TrimSpace(pair[0])] = strings.TrimSpace(pair[1])
-	}
-
-	return func(r *route) {
-		r.headers = headerMap
-	}
-}
 
 // New creates a mock server, it will listen on a unoccupied port
 func New() *mockServer {
@@ -91,6 +74,11 @@ func (s *mockServer) Stop() {
 	}
 }
 
+// URL returns the base URL of the mock server
+func (s *mockServer) URL() string {
+	return fmt.Sprintf("http://%s", s.addr)
+}
+
 // Stub loads stub requests into routes
 // TODO: load cassettes
 func (s *mockServer) Stub(method, uri string, response string, options ...FuncOption) {
@@ -110,8 +98,6 @@ func (s *mockServer) Stub(method, uri string, response string, options ...FuncOp
 	for _, opt := range options {
 		opt(r)
 	}
-
-	fmt.Printf("===Route: %#v\n", r)
 
 	s.routes = append(s.routes, r)
 
@@ -135,18 +121,25 @@ func (s *mockServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	for headerKey, headerVal := range routeFound.responseHeaders {
+		w.Header().Set(headerKey, headerVal)
+	}
+
+	statusCode := routeFound.statusCode
+	if statusCode == 0 {
+		statusCode = http.StatusOK
+	}
+
+	w.WriteHeader(statusCode)
+
 	io.WriteString(w, routeFound.response)
 }
 
 func routeMatch(route *route, r *http.Request) bool {
-	// fmt.Printf("===Route: %#v\n", route)
-	// fmt.Printf("===Request: %#v\n", r.Header)
-
 	if route.path == r.URL.Path &&
 		route.method == r.Method &&
 		route.query == r.URL.RawQuery &&
-		headersMatch(route.headers, r.Header) {
+		headersMatch(route.requestHeaders, r.Header) {
 		return true
 	}
 
@@ -163,6 +156,34 @@ func headersMatch(routeHeaders map[string]string, requestHeader http.Header) boo
 	return true
 }
 
-func (s *mockServer) URL() string {
-	return fmt.Sprintf("http://%s", s.addr)
+// WithHeaders specifies headers to be matched
+func WithHeaders(headerStr string) FuncOption {
+	headers := strings.Split(headerStr, ";")
+	headerMap := make(map[string]string)
+
+	for _, header := range headers {
+		pair := strings.Split(header, ":")
+		headerMap[strings.TrimSpace(pair[0])] = strings.TrimSpace(pair[1])
+	}
+
+	return func(r *route) {
+		r.requestHeaders = headerMap
+	}
+}
+
+// WithResponse specifies response to be rendered
+func WithResponse(code int, response string, headers map[string]string) FuncOption {
+	return func(r *route) {
+		if len(http.StatusText(code)) > 0 {
+			r.statusCode = code
+		}
+
+		if len(response) > 0 {
+			r.response = response
+		}
+
+		if len(headers) > 0 {
+			r.responseHeaders = headers
+		}
+	}
 }

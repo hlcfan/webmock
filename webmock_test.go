@@ -162,9 +162,49 @@ func TestWebMock(t *testing.T) {
 		req.Header.Set("Accept-Encoding", "gzip")
 
 		resp, err := client.Do(req)
-
 		if resp.StatusCode != http.StatusNotFound {
 			t.Errorf("unexpected response status, want: %d, got: %d", http.StatusOK, resp.StatusCode)
+		}
+	})
+
+	t.Run("It serves stub http requests with customized response", func(t *testing.T) {
+		url := "/get"
+		response := "No permissions"
+
+		server.Stub(
+			"GET",
+			url,
+			"",
+			webmock.WithResponse(http.StatusUnauthorized, response, map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			}),
+		)
+
+		req, err := http.NewRequest("GET", baseURL+url, nil)
+		if err != nil {
+			panic(err)
+		}
+
+		resp, err := client.Do(req)
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Errorf("unexpected response status, want: %d, got: %d", http.StatusUnauthorized, resp.StatusCode)
+		}
+
+		defer resp.Body.Close()
+
+		respBodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			panic(err)
+		}
+
+		respBody := string(respBodyBytes)
+		if respBody != response {
+			t.Errorf("unexpected response body, want: %s, got: %s", "ok", respBody)
+		}
+
+		responseHeader := resp.Header.Get("Access-Control-Allow-Origin")
+		if responseHeader != "*" {
+			t.Errorf("unexpected response header, want: %s, got: %s", "*", responseHeader)
 		}
 	})
 }
