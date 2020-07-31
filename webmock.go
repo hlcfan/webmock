@@ -1,4 +1,4 @@
-package gowebmock
+package webmock
 
 import (
 	"fmt"
@@ -48,7 +48,7 @@ func WithHeaders(headerStr string) FuncOption {
 	}
 }
 
-// Newcreates new mock server
+// New creates a mock server, it will listen on a unoccupied port
 func New() *mockServer {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -70,6 +70,7 @@ func New() *mockServer {
 	}
 }
 
+// Start starts the mock server in a goroutine
 func (s *mockServer) Start() {
 	s.server.Handler = s
 
@@ -83,12 +84,15 @@ func (s *mockServer) Start() {
 	}()
 }
 
+// Stop stops the mock server
 func (s *mockServer) Stop() {
 	if s.server != nil {
 		s.server.Close()
 	}
 }
 
+// Stub loads stub requests into routes
+// TODO: load cassettes
 func (s *mockServer) Stub(method, uri string, response string, options ...FuncOption) {
 	url, err := url.Parse(uri)
 	if err != nil {
@@ -114,6 +118,9 @@ func (s *mockServer) Stub(method, uri string, response string, options ...FuncOp
 	s.server.Handler = s
 }
 
+// ServeHTTP implements the server.Handler
+// It go over all existing routes and find the one matches and render response
+// based on the found route
 func (s *mockServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var routeFound *route
 
@@ -147,9 +154,7 @@ func routeMatch(route *route, r *http.Request) bool {
 }
 
 func headersMatch(routeHeaders map[string]string, requestHeader http.Header) bool {
-	fmt.Println("===Route Headers: ", routeHeaders)
 	for key, val := range routeHeaders {
-		fmt.Println("===Route Header: ", val, "Header:", requestHeader.Get(key))
 		if val != requestHeader.Get(key) {
 			return false
 		}

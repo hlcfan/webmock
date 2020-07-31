@@ -1,4 +1,4 @@
-package gowebmock_test
+package webmock_test
 
 import (
 	"bytes"
@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/hlcfan/gowebmock"
+	"github.com/hlcfan/webmock"
 )
 
 func TestWebMock(t *testing.T) {
-	server := gowebmock.New()
+	server := webmock.New()
 	baseURL := server.URL()
 	fmt.Println("===", baseURL)
 	server.Start()
@@ -120,7 +120,7 @@ func TestWebMock(t *testing.T) {
 		url := "/get"
 		response := "ok with headers"
 
-		server.Stub("GET", url, response, gowebmock.WithHeaders("Accept-Encoding: gzip,deflate"))
+		server.Stub("GET", url, response, webmock.WithHeaders("Accept-Encoding: gzip,deflate"))
 
 		req, err := http.NewRequest("GET", baseURL+url, nil)
 		if err != nil {
@@ -152,7 +152,7 @@ func TestWebMock(t *testing.T) {
 		url := "/get"
 		response := "ok with headers"
 
-		server.Stub("GET", url, response, gowebmock.WithHeaders("Accept-Encoding: gzip,deflate"))
+		server.Stub("GET", url, response, webmock.WithHeaders("Accept-Encoding: gzip,deflate"))
 
 		req, err := http.NewRequest("GET", baseURL+url, nil)
 		if err != nil {
