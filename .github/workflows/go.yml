@@ -24,3 +24,9 @@ jobs:
 
     - name: Test
       run: go test -v -race .
+
+    - name: Code coverage
+      uses: codecov/codecov-action@v1
+      with:
+        file: ./coverage.out
+      
