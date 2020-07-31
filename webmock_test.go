@@ -16,8 +16,6 @@ func TestWebMock(t *testing.T) {
 	fmt.Println("===", baseURL)
 	server.Start()
 
-	defer server.Stop()
-
 	client := &http.Client{}
 
 	t.Run("It serves stub http requests with GET", func(t *testing.T) {

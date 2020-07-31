@@ -1,6 +1,7 @@
 package webmock
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -70,7 +71,7 @@ func (s *mockServer) Start() {
 // Stop stops the mock server
 func (s *mockServer) Stop() {
 	if s.server != nil {
-		s.server.Close()
+		s.server.Shutdown(context.TODO())
 	}
 }
 
