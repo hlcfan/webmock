@@ -1,5 +1,5 @@
 ## Webmock
-![](https://github.com/hlcfan/webmock/workflows/Go/badge.svg)  
+![](https://github.com/hlcfan/webmock/workflows/Default/badge.svg)  
 
 This package creates a HTTP server, it stubs requests. Inspired by [bblimke/webmock](https://github.com/bblimke/webmock). It's useful when writing integration tests while code reply on external requests. With *webmock*, just point the endpoint/host to mock server and stub the requests.
 
