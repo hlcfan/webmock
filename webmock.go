@@ -135,8 +135,8 @@ func (s *MockServer) Stub(method, uri string, response string, options ...FuncOp
 	s.server.Handler = s
 }
 
-// LoadCassette loads cassette files
-func (s *MockServer) LoadCassette(path string) {
+// LoadCassettes loads cassette files
+func (s *MockServer) LoadCassettes(path string) {
 	stat, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
