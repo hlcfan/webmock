@@ -206,10 +206,20 @@ func TestWebMock(t *testing.T) {
 		}
 	})
 
+}
+
+func TestWebMockLoadCassettes(t *testing.T) {
+	server := webmock.New()
+	baseURL := server.URL()
+	fmt.Println("===", baseURL)
+	server.Start()
+
+	client := &http.Client{}
+
 	t.Run("It serves stub http requests with cassette file", func(t *testing.T) {
 		response := "OK, zoomer"
-		// server.LoadCassette("./fixtures/sample_cassette.yml")
-		server.LoadCassette("./fixtures")
+		// server.LoadCassettes("./fixtures/sample_cassette.yml")
+		server.LoadCassettes("./fixtures")
 
 		req, err := http.NewRequest("GET", baseURL+"/hello", nil)
 		if err != nil {
@@ -291,5 +301,48 @@ func TestWebMock(t *testing.T) {
 			t.Errorf("unexpected response body, want: %s, got: %s", response, respBody)
 		}
 
+	})
+}
+
+func TestWebMockReset(t *testing.T) {
+	server := webmock.New()
+	baseURL := server.URL()
+	fmt.Println("===", baseURL)
+	server.Start()
+
+	t.Run("It resets all routes", func(t *testing.T) {
+		server.Stub("GET", "/abc", "ok")
+
+		resp, err := http.Get(baseURL + "/abc")
+		if err != nil {
+			panic(err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("unexpected response status, want: %d, got: %d", http.StatusOK, resp.StatusCode)
+		}
+
+		defer resp.Body.Close()
+
+		respBodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			panic(err)
+		}
+
+		respBody := string(respBodyBytes)
+		if respBody != "ok" {
+			t.Errorf("unexpected response body, want: %s, got: %s", "ok", respBody)
+		}
+
+		server.Reset()
+
+		resp, err = http.Get(baseURL + "/abc")
+		if err != nil {
+			panic(err)
+		}
+
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("unexpected response status, want: %d, got: %d", http.StatusNotFound, resp.StatusCode)
+		}
 	})
 }
