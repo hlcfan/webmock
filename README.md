@@ -58,3 +58,13 @@ server.Stub(
 
 // curl -i -H "Content-Type: application/json" http://server/abc?foo=bar
 ```
+
+### Load cassettes
+
+```go
+// Load a directory
+server.LoadCassette("./fixtures")
+
+// Load a yaml file
+server.LoadCassette("./fixtures/sample_cassette.yml")
+```
