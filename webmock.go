@@ -4,14 +4,19 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
+
+	"gopkg.in/yaml.v2"
 )
 
-type mockServer struct {
+// MockServer holds mock server and routes
+type MockServer struct {
 	addr   string
 	server *http.Server
 	routes []*route
@@ -32,8 +37,26 @@ type route struct {
 // FuncOption is the option for a route
 type FuncOption func(*route)
 
+type cassetteRoute struct {
+	Request  httpRequest  `yaml:"request"`
+	Response httpResponse `yaml:"response"`
+}
+
+type cassetteRoutes []cassetteRoute
+
+type httpRequest struct {
+	Method string `yaml:"method"`
+	Path   string `yaml:"path"`
+}
+
+type httpResponse struct {
+	Status  int               `yaml:"status"`
+	Headers map[string]string `yaml:"headers"`
+	Body    string            `yaml:"body"`
+}
+
 // New creates a mock server, it will listen on a unoccupied port
-func New() *mockServer {
+func New() *MockServer {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		log.Fatal("allocate listen address fail: ", err)
@@ -47,7 +70,7 @@ func New() *mockServer {
 		Addr: addr,
 	}
 
-	return &mockServer{
+	return &MockServer{
 		addr:   addr,
 		server: srv,
 		routes: make([]*route, 0),
@@ -55,7 +78,7 @@ func New() *mockServer {
 }
 
 // Start starts the mock server in a goroutine
-func (s *mockServer) Start() {
+func (s *MockServer) Start() {
 	s.server.Handler = s
 
 	go func() {
@@ -69,20 +92,19 @@ func (s *mockServer) Start() {
 }
 
 // Stop stops the mock server
-func (s *mockServer) Stop() {
+func (s *MockServer) Stop() {
 	if s.server != nil {
 		s.server.Shutdown(context.TODO())
 	}
 }
 
 // URL returns the base URL of the mock server
-func (s *mockServer) URL() string {
+func (s *MockServer) URL() string {
 	return fmt.Sprintf("http://%s", s.addr)
 }
 
 // Stub loads stub requests into routes
-// TODO: load cassettes
-func (s *mockServer) Stub(method, uri string, response string, options ...FuncOption) {
+func (s *MockServer) Stub(method, uri string, response string, options ...FuncOption) {
 	url, err := url.Parse(uri)
 	if err != nil {
 		log.Fatal("invalid url: ", err)
@@ -105,10 +127,86 @@ func (s *mockServer) Stub(method, uri string, response string, options ...FuncOp
 	s.server.Handler = s
 }
 
+// LoadCassette loads cassette files
+func (s *MockServer) LoadCassette(path string) {
+	stat, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			log.Fatal("file or dir not exist: ", path)
+		} else {
+			log.Fatalf("reading file or dir `%s` fail: %s", path, err)
+		}
+	}
+
+	var routes []*route
+
+	switch mode := stat.Mode(); {
+	case mode.IsDir():
+		r := loadCassettes(path)
+		routes = append(routes, r...)
+	case mode.IsRegular():
+		r := loadCassette(path)
+		routes = append(routes, r...)
+	}
+
+	s.routes = append(s.routes, routes...)
+	s.server.Handler = s
+}
+
+func loadCassettes(dirPath string) []*route {
+	files, err := ioutil.ReadDir(dirPath)
+	if err != nil {
+		log.Fatal("read dir fails: ", err)
+	}
+
+	var routes []*route
+	for _, f := range files {
+		r := loadCassette(f.Name())
+		routes = append(routes, r...)
+	}
+
+	return routes
+}
+
+func loadCassette(filePath string) []*route {
+	file, err := os.Open(filePath)
+	if err != nil {
+		log.Fatalf("fail to read file: %s, err: %s", filePath, err)
+	}
+
+	var cassettes cassetteRoutes
+	err = yaml.NewDecoder(file).Decode(&cassettes)
+	if err != nil {
+		log.Fatalf("invalid yaml format: %s, err: %s", filePath, err)
+	}
+
+	var routes []*route
+
+	for _, c := range cassettes {
+		url, err := url.Parse(c.Request.Path)
+		if err != nil {
+			log.Fatalf("invalid url: %s, err: %s", c.Request.Path, err)
+		}
+
+		r := &route{
+			path:            url.Path,
+			method:          strings.ToUpper(c.Request.Method),
+			query:           url.RawQuery,
+			response:        c.Response.Body,
+			responseHeaders: c.Response.Headers,
+		}
+		fmt.Printf("===Cassets: %#v\n", r)
+
+		routes = append(routes, r)
+	}
+
+	return routes
+}
+
 // ServeHTTP implements the server.Handler
 // It go over all existing routes and find the one matches and render response
 // based on the found route
-func (s *mockServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *MockServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var routeFound *route
 
 	for _, route := range s.routes {

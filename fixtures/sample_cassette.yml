@@ -1,0 +1,26 @@
+---
+- request:
+    method: get
+    path: /hello
+  response:
+    status: 200
+    headers:
+      Access-Control-Allow-Origin: '*'
+      X-Request-Id: "fake-request-id"
+    body:
+      OK, zoomer
+- request:
+    method: get
+    path: /foo?foo=bar
+  response:
+    status: 503
+    body: Service Unavailable
+- request:
+    method: post
+    path: /book
+    headers:
+      X-Http-Header1:
+      - val1
+  response:
+    status: 201
+    body: Book created

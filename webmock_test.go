@@ -205,4 +205,42 @@ func TestWebMock(t *testing.T) {
 			t.Errorf("unexpected response header, want: %s, got: %s", "*", responseHeader)
 		}
 	})
+
+	t.Run("It serves stub http requests with cassette file", func(t *testing.T) {
+		response := "OK, zoomer"
+		server.LoadCassette("./fixtures/sample_cassette.yml")
+
+		req, err := http.NewRequest("GET", baseURL+"/hello", nil)
+		if err != nil {
+			panic(err)
+		}
+
+		resp, err := client.Do(req)
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("unexpected response status, want: %d, got: %d", http.StatusOK, resp.StatusCode)
+		}
+
+		defer resp.Body.Close()
+
+		respBodyBytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			panic(err)
+		}
+
+		respBody := string(respBodyBytes)
+		if respBody != response {
+			t.Errorf("unexpected response body, want: %s, got: %s", "ok", respBody)
+		}
+
+		responseHeader := resp.Header.Get("Access-Control-Allow-Origin")
+		if responseHeader != "*" {
+			t.Errorf("unexpected response header, want: %s, got: %s", "*", responseHeader)
+		}
+
+		requestID := "fake-request-id"
+		requestIDHeader := resp.Header.Get("X-Request-Id")
+		if requestIDHeader != requestID {
+			t.Errorf("unexpected response header, want: %s, got: %s", requestID, requestIDHeader)
+		}
+	})
 }
