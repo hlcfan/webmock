@@ -11,7 +11,7 @@
       OK, zoomer
 - request:
     method: get
-    path: /foo?foo=bar
+    path: /maintenance?foo=bar
   response:
     status: 503
     body: Service Unavailable
@@ -19,8 +19,7 @@
     method: post
     path: /book
     headers:
-      X-Http-Header1:
-      - val1
+      X-Http-Header1: val1
   response:
     status: 201
     body: Book created

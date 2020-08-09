@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 
 	"gopkg.in/yaml.v2"
@@ -29,7 +30,7 @@ type route struct {
 	query           string
 	requestHeaders  map[string]string
 	statusCode      int
-	response        string
+	body            string
 	responseHeaders map[string]string
 	//TODO: payload
 }
@@ -45,8 +46,9 @@ type cassetteRoute struct {
 type cassetteRoutes []cassetteRoute
 
 type httpRequest struct {
-	Method string `yaml:"method"`
-	Path   string `yaml:"path"`
+	Method  string            `yaml:"method"`
+	Path    string            `yaml:"path"`
+	Headers map[string]string `yaml:"headers"`
 }
 
 type httpResponse struct {
@@ -98,6 +100,12 @@ func (s *MockServer) Stop() {
 	}
 }
 
+// Reset resets mocked routes
+func (s *MockServer) Reset() {
+	s.routes = make([]*route, 0)
+	s.server.Handler = s
+}
+
 // URL returns the base URL of the mock server
 func (s *MockServer) URL() string {
 	return fmt.Sprintf("http://%s", s.addr)
@@ -111,11 +119,11 @@ func (s *MockServer) Stub(method, uri string, response string, options ...FuncOp
 	}
 
 	r := &route{
-		domain:   url.Host,
-		path:     url.Path,
-		method:   method,
-		query:    url.RawQuery,
-		response: response,
+		domain: url.Host,
+		path:   url.Path,
+		method: method,
+		query:  url.RawQuery,
+		body:   response,
 	}
 
 	for _, opt := range options {
@@ -161,7 +169,7 @@ func loadCassettes(dirPath string) []*route {
 
 	var routes []*route
 	for _, f := range files {
-		r := loadCassette(f.Name())
+		r := loadCassette(path.Join(dirPath, f.Name()))
 		routes = append(routes, r...)
 	}
 
@@ -192,10 +200,10 @@ func loadCassette(filePath string) []*route {
 			path:            url.Path,
 			method:          strings.ToUpper(c.Request.Method),
 			query:           url.RawQuery,
-			response:        c.Response.Body,
+			body:            c.Response.Body,
 			responseHeaders: c.Response.Headers,
+			statusCode:      c.Response.Status,
 		}
-		fmt.Printf("===Cassets: %#v\n", r)
 
 		routes = append(routes, r)
 	}
@@ -231,7 +239,7 @@ func (s *MockServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(statusCode)
 
-	io.WriteString(w, routeFound.response)
+	io.WriteString(w, routeFound.body)
 }
 
 func routeMatch(route *route, r *http.Request) bool {
@@ -278,7 +286,7 @@ func WithResponse(code int, response string, headers map[string]string) FuncOpti
 		}
 
 		if len(response) > 0 {
-			r.response = response
+			r.body = response
 		}
 
 		if len(headers) > 0 {

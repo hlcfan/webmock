@@ -242,5 +242,53 @@ func TestWebMock(t *testing.T) {
 		if requestIDHeader != requestID {
 			t.Errorf("unexpected response header, want: %s, got: %s", requestID, requestIDHeader)
 		}
+
+		response = "Book created"
+
+		req, err = http.NewRequest("POST", baseURL+"/book", nil)
+		if err != nil {
+			panic(err)
+		}
+
+		resp, err = client.Do(req)
+		if resp.StatusCode != http.StatusCreated {
+			t.Errorf("unexpected response status, want: %d, got: %d", http.StatusCreated, resp.StatusCode)
+		}
+
+		defer resp.Body.Close()
+
+		respBodyBytes, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			panic(err)
+		}
+
+		respBody = string(respBodyBytes)
+		if respBody != response {
+			t.Errorf("unexpected response body, want: %s, got: %s", response, respBody)
+		}
+
+		response = "Service Unavailable"
+		req, err = http.NewRequest("GET", baseURL+"/maintenance?foo=bar", nil)
+		if err != nil {
+			panic(err)
+		}
+
+		resp, err = client.Do(req)
+		if resp.StatusCode != http.StatusServiceUnavailable {
+			t.Errorf("unexpected response status, want: %d, got: %d", http.StatusServiceUnavailable, resp.StatusCode)
+		}
+
+		defer resp.Body.Close()
+
+		respBodyBytes, err = ioutil.ReadAll(resp.Body)
+		if err != nil {
+			panic(err)
+		}
+
+		respBody = string(respBodyBytes)
+		if respBody != response {
+			t.Errorf("unexpected response body, want: %s, got: %s", response, respBody)
+		}
+
 	})
 }
