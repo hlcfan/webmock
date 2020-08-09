@@ -208,7 +208,8 @@ func TestWebMock(t *testing.T) {
 
 	t.Run("It serves stub http requests with cassette file", func(t *testing.T) {
 		response := "OK, zoomer"
-		server.LoadCassette("./fixtures/sample_cassette.yml")
+		// server.LoadCassette("./fixtures/sample_cassette.yml")
+		server.LoadCassette("./fixtures")
 
 		req, err := http.NewRequest("GET", baseURL+"/hello", nil)
 		if err != nil {
